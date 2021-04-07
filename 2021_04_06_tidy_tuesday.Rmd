@@ -1,0 +1,159 @@
+---
+title: "TidyTemplate"
+date: 2021-04-05
+output: github_document
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(glue)
+dt<-as.character(Sys.Date())
+imgdir<-"img/"
+
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-04-06")
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+# Glimpse Data
+
+Take an initial look at the format of the data available.
+
+```{r Glimpse}
+
+tt %>% 
+  map(glimpse)
+
+```
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+world.map <- map_data("world")
+world.map <- world.map %>% filter(region !='Antarctica')
+
+f1991 <- tt$forest_area %>%
+  dplyr::filter(year == 1995 ) %>%  #
+  dplyr::rename(region = entity)  # Rename columns'
+
+
+f2015 <- tt$forest_area %>%
+  dplyr::filter(year == 2020 ) %>%  #
+  dplyr::rename(region = entity)  # Rename columns
+
+change <- left_join(f1991, f2015, by=c("region", "code"))
+glimpse(change)
+
+change<-change %>% drop_na(code) %>% rename(fa_1991=forest_area.x, fa_2015=forest_area.y) %>% select(region,fa_1991, fa_2015 ) %>% mutate(fa_change=((fa_2015-fa_1991)), .keep="all") %>%
+ mutate(
+    region = ifelse(region == "Antigua and Barbuda", "Antigua", region) 
+    )  %>%
+   mutate(
+    region = ifelse(region == "United States", "USA", region) 
+    )   %>%
+   mutate(
+    region = ifelse(region == "Congo", "Republic of Congo", region) 
+    )  %>%
+   mutate(
+    region = ifelse(region == "Democratic Republic of Congo", "Democratic Republic of the Congo", region) 
+    )  %>%
+   mutate(
+    region = ifelse(region == "Pitcairn", "Pitcairn Islands", region) 
+    )  %>%
+   mutate(
+    region = ifelse(region == "United Kingdom", "UK", region) 
+    )  %>%
+   mutate(
+    region = ifelse(region == "North Macedonia", "Macedonia", region) 
+    )   %>%
+   mutate(
+    region = ifelse(region == "Saint Kitts and Nevis", "Saint Kitts", region) 
+    )  %>%
+   mutate(
+    region = ifelse(region == "Saint Vincent and the Grenadine", "Saint Vincent", region) 
+    )   %>%
+   mutate(
+    region = ifelse(region == "Timor", "Timor-Leste", region) 
+    ) 
+
+data.map<-left_join(world.map, change, by= "region")
+
+change
+
+summary(change)
+```
+
+
+```
+world.regions <- world %>% select(region)
+world.regions <- unique(world.regions)
+
+change.regions <- change %>% select(region)
+change.regions <- unique(change.regions)
+
+missing.regions<-anti_join(change.regions, world.regions)
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+
+ggplot(data.map, aes(map_id = region, fill = fa_change))+
+  geom_map(map = data.map,  color = "dark gray")+
+  expand_limits(x = data.map$long, y = data.map$lat)+
+  scale_fill_gradient2(low = "brown", mid = "white", high = "green", midpoint = 0.0102, label_value("Change in %"))+
+  ggtitle(label="Change in % of Global Forests by Country 1995-2020")+
+  labs(caption = "Grey countryies have no data")+
+  
+  theme_void()
+  
+```
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+ggsave(
+  filename = glue('{imgdir}tidytuesdayplot_{dt}.png'))
+
+```
